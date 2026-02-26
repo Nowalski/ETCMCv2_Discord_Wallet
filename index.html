@@ -297,9 +297,7 @@
         function isWalletBrowser() {
             const userAgent = navigator.userAgent.toLowerCase();
             return userAgent.includes('metamask') || 
-                   userAgent.includes('trust') || 
-                   userAgent.includes('rainbow') || 
-                   userAgent.includes('coinbase') ||
+                   userAgent.includes('trust') ||
                    window.ethereum !== undefined;
         }
         
@@ -529,36 +527,24 @@
                             <div class="step">
                                 <div class="step-number">1</div>
                                 <div class="step-text">
-                                    <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        🦊 Open in MetaMask
+                                    <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        🔷 Open in Trust Wallet
                                     </button>
+                                    <div style="margin-top: 8px; font-size: 12px; color: #8b5cf6;">
+                                        ✅ Works perfectly!
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="step">
                                 <div class="step-number">2</div>
                                 <div class="step-text">
-                                    <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        🔷 Open in Trust Wallet
+                                    <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        🦊 Open in MetaMask
                                     </button>
-                                </div>
-                            </div>
-                            
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <div class="step-text">
-                                    <button class="copy-button" onclick="openRainbowDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        🌈 Open in Rainbow
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="step">
-                                <div class="step-number">4</div>
-                                <div class="step-text">
-                                    <button class="copy-button" onclick="openCoinbaseDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        💙 Open in Coinbase
-                                    </button>
+                                    <div style="margin-top: 8px; font-size: 12px; color: #fbbf24;">
+                                        ⚠️ May show blank page - try manual copy
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -584,28 +570,37 @@
         }
         
         // MetaMask deeplink functions
-        function openMetaMaskDeepLink() {
-            const currentUrl = window.location.href;
-            const metamaskUrl = `https://link.metamask.io/dapp/${encodeURIComponent(currentUrl)}`;
-            window.location.href = metamaskUrl;
-        }
-        
         function openTrustDeepLink() {
             const currentUrl = window.location.href;
             const trustUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(currentUrl)}`;
             window.location.href = trustUrl;
         }
         
-        function openRainbowDeepLink() {
+        function openMetaMaskDeepLink() {
+            // Try different MetaMask deeplink approaches
             const currentUrl = window.location.href;
-            const rainbowUrl = `https://rainbow.me/dapp/${encodeURIComponent(currentUrl)}`;
-            window.location.href = rainbowUrl;
-        }
-        
-        function openCoinbaseDeepLink() {
-            const currentUrl = window.location.href;
-            const coinbaseUrl = `https://go.cb-w.com/dapp?url=${encodeURIComponent(currentUrl)}`;
-            window.location.href = coinbaseUrl;
+            
+            // Method 1: Standard dapp link
+            const metamaskUrl1 = `https://link.metamask.io/dapp/${encodeURIComponent(currentUrl)}`;
+            
+            // Method 2: Direct URL approach (fallback)
+            const metamaskUrl2 = `metamask://dapp/${encodeURIComponent(currentUrl)}`;
+            
+            // Method 3: Universal link
+            const metamaskUrl3 = `https://metamask.app.link/dapp/${encodeURIComponent(currentUrl)}`;
+            
+            // Try Method 1 first
+            window.location.href = metamaskUrl1;
+            
+            // Fallback to Method 2 after 1 second if Method 1 doesn't work
+            setTimeout(() => {
+                window.location.href = metamaskUrl2;
+            }, 1000);
+            
+            // Final fallback to Method 3
+            setTimeout(() => {
+                window.location.href = metamaskUrl3;
+            }, 2000);
         }
         
         // Main initialization
