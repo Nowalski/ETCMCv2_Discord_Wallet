@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <title>ETCMCv2 Wallet Verification</title>
+    
+    <!-- WalletConnect v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(26, 35, 126, 0.1);
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 24px;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            margin: 0 0 16px 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .message-box {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: left;
+        }
+        
+        .message-label {
+            font-size: 12px;
+            color: #8b5cf6;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .message-content {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #ffffff;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
+        .copy-button {
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .copy-button:hover {
+            background: linear-gradient(45deg, #2a2a2a, #1a1a1a);
+            transform: translateY(-2px);
+        }
+        
+        .copy-button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .success {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            color: #8b5cf6;
+        }
+        
+        .error {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            color: #fbbf24;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+        
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #1a1a1a;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .discord-info {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(26, 35, 126, 0.1);
+            border-radius: 8px;
+            font-size: 12px;
+            color: #8b5cf6;
+            line-height: 1.4;
+        }
+        
+        .github-notice {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 35, 126, 0.1);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .github-notice:hover {
+            background: rgba(26, 35, 126, 0.2);
+        }
+        
+        .etc-brand {
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <span class="etc-brand">ETCMC</span>v2
+        </div>
+        <h1>Wallet Verification</h1>
+        
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Initializing ETCMCv2 verification...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- GitHub link -->
+    <a href="https://github.com/Nowalski/ETCMCv2_Discord_Wallet" target="_blank" class="github-notice">
+        📁 Powered by GitHub Pages
+    </a>
+
+    <script>
+        let verificationData = null;
+        let provider = null;
+        
+        // Parse URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                user: params.get('user'),
+                nonce: params.get('nonce'),
+                msg: params.get('msg')
+            };
+        }
+        
+        // Show verification message from URL parameters or WalletConnect
+        function showVerificationMessage(message) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="message-box">
+                    <div class="message-label">Verification Message</div>
+                    <div class="message-content">${message}</div>
+                    <button class="copy-button" onclick="copyMessage()">
+                        📋 Copy Message
+                    </button>
+                </div>
+                <div class="discord-info">
+                    💡 Copy this message and use your wallet's "Sign Message" feature<br>
+                    Then return to Discord and use: <code>/verifywallet signature:0x...</code>
+                </div>
+            `;
+        }
+        
+        function copyMessage() {
+            const messageText = document.querySelector('.message-content').textContent;
+            navigator.clipboard.writeText(messageText).then(() => {
+                showStatus('✅ Message copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy message', 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const contentDiv = document.getElementById('content');
+            const existingStatus = contentDiv.querySelector('.status');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+            
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            contentDiv.appendChild(statusDiv);
+            
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 3000);
+        }
+        
+        // Initialize WalletConnect v2
+        async function initWalletConnect() {
+            if (window.WalletConnectProvider) {
+                try {
+                    console.log('🔗 Initializing ETCMCv2 WalletConnect...');
+                    
+                    provider = new window.WalletConnectProvider({
+                        infuraId: null,
+                        rpc: {
+                            61: 'https://etc.rivet.link'
+                        }
+                    });
+                    
+                    // Try to get existing session
+                    try {
+                        const session = await provider.connect();
+                        console.log('✅ ETCMCv2 WalletConnect session:', session);
+                        showVerificationMessage('Please use the verification message from Discord');
+                        
+                    } catch (error) {
+                        console.log('📱 No existing session, showing QR...');
+                        // Show QR modal for new connection
+                        await provider.enable();
+                        showVerificationMessage('📱 ETCMCv2 QR scanned. Please check your wallet for the verification message.');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ ETCMCv2 WalletConnect error:', error);
+                    showVerificationMessage('❌ ETCMCv2 WalletConnect initialization failed. Please use manual method below.');
+                }
+            } else {
+                showVerificationMessage('❌ ETCMCv2 WalletConnect not available. Please use manual method below.');
+            }
+        }
+        
+        // Main initialization
+        async function init() {
+            const params = getUrlParams();
+            
+            if (params.msg) {
+                // Direct message from URL parameters
+                console.log('📝 Direct message from URL parameters');
+                showVerificationMessage(params.msg);
+                return;
+            }
+            
+            // Try ETCMCv2 WalletConnect
+            await initWalletConnect();
+        }
+        
+        // Start initialization
+        init();
+    </script>
+</body>
+</html>
