@@ -332,21 +332,26 @@
                         <div class="step">
                             <div class="step-number">1</div>
                             <div class="step-text">
-                                Open your wallet app (MetaMask, Trust, Rainbow, or Coinbase)
+                                <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                    🦊 Open in MetaMask
+                                </button>
+                                <div style="margin-top: 8px; font-size: 12px; color: #fbbf24;">
+                                    This opens MetaMask with this page loaded!
+                                </div>
                             </div>
                         </div>
                         
                         <div class="step">
                             <div class="step-number">2</div>
                             <div class="step-text">
-                                Find the <span class="highlight">Sign Message</span> feature in your wallet
+                                In MetaMask, find the <span class="highlight">Sign Message</span> feature
                             </div>
                         </div>
                         
                         <div class="step">
                             <div class="step-number">3</div>
                             <div class="step-text">
-                                Paste the verification message and sign it
+                                Paste verification message and sign it
                             </div>
                         </div>
                         
@@ -361,6 +366,22 @@
                             <div class="step-number">5</div>
                             <div class="step-text">
                                 Return to Discord and use: <span class="highlight">/verifywallet signature:0x...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="step" style="margin-top: 16px;">
+                            <div class="step-number">🔄</div>
+                            <div class="step-text">
+                                <strong>Alternative wallets:</strong><br>
+                                <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
+                                    🔷 Trust Wallet
+                                </button>
+                                <button class="copy-button" onclick="openRainbowDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
+                                    🌈 Rainbow
+                                </button>
+                                <button class="copy-button" onclick="openCoinbaseDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
+                                    💙 Coinbase
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -512,6 +533,31 @@
                 console.error('Desktop wallet error:', error);
                 showStatus('❌ Failed to connect: ' + error.message, 'error');
             }
+        }
+        
+        // MetaMask deeplink functions
+        function openMetaMaskDeepLink() {
+            const currentUrl = window.location.href;
+            const metamaskUrl = `https://link.metamask.io/dapp/${encodeURIComponent(currentUrl)}`;
+            window.location.href = metamaskUrl;
+        }
+        
+        function openTrustDeepLink() {
+            const currentUrl = window.location.href;
+            const trustUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(currentUrl)}`;
+            window.location.href = trustUrl;
+        }
+        
+        function openRainbowDeepLink() {
+            const currentUrl = window.location.href;
+            const rainbowUrl = `https://rainbow.me/dapp/${encodeURIComponent(currentUrl)}`;
+            window.location.href = rainbowUrl;
+        }
+        
+        function openCoinbaseDeepLink() {
+            const currentUrl = window.location.href;
+            const coinbaseUrl = `https://go.cb-w.com/dapp?url=${encodeURIComponent(currentUrl)}`;
+            window.location.href = coinbaseUrl;
         }
         
         function copySignature(signature) {
