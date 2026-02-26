@@ -87,7 +87,7 @@
             line-height: 1.4;
         }
         
-        .copy-button {
+        .copy-button, .connect-button {
             background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
             color: white;
             border: none;
@@ -104,7 +104,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
-        .copy-button:hover {
+        .copy-button:hover, .connect-button:hover {
             background: linear-gradient(45deg, #2a2a2a, #1a1a1a);
             transform: translateY(-2px);
         }
@@ -181,41 +181,46 @@
             font-weight: bold;
         }
         
-        .wallet-options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin: 16px 0;
-        }
-        
-        .wallet-button {
-            background: rgba(26, 35, 126, 0.1);
-            border: 1px solid rgba(26, 35, 126, 0.2);
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        
-        .wallet-button:hover {
-            background: rgba(26, 35, 126, 0.2);
-            transform: translateY(-2px);
-        }
-        
-        .instructions-box {
+        .wallet-info {
             background: rgba(26, 35, 126, 0.1);
             border: 1px solid rgba(26, 35, 126, 0.2);
             border-radius: 8px;
             padding: 16px;
             margin: 16px 0;
             text-align: left;
+        }
+        
+        .wallet-address {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #8b5cf6;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
+        .signature-result {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: left;
+        }
+        
+        .signature-text {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #8b5cf6;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            line-height: 1.4;
         }
         
         .step {
@@ -276,6 +281,7 @@
     <script>
         let verificationMessage = null;
         let userParams = null;
+        let currentWallet = null;
         
         // Parse URL parameters
         function getUrlParams() {
@@ -287,197 +293,49 @@
             };
         }
         
-        function copyMessage() {
-            if (!verificationMessage) return;
-            navigator.clipboard.writeText(verificationMessage).then(() => {
-                showStatus('✅ Message copied to clipboard!', 'success');
-            }).catch(() => {
-                showStatus('❌ Failed to copy message', 'error');
-            });
+        // Check if we're in a wallet browser
+        function isWalletBrowser() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.includes('metamask') || 
+                   userAgent.includes('trust') || 
+                   userAgent.includes('rainbow') || 
+                   userAgent.includes('coinbase') ||
+                   window.ethereum !== undefined;
         }
         
-        function showStatus(message, type) {
-            const contentDiv = document.getElementById('content');
-            const existingStatus = contentDiv.querySelector('.status');
-            if (existingStatus) {
-                existingStatus.remove();
-            }
-            
-            const statusDiv = document.createElement('div');
-            statusDiv.className = `status ${type}`;
-            statusDiv.textContent = message;
-            contentDiv.appendChild(statusDiv);
-            
-            setTimeout(() => {
-                statusDiv.remove();
-            }, 3000);
-        }
-        
-        function showMainInterface() {
-            const contentDiv = document.getElementById('content');
-            
-            if (verificationMessage) {
-                contentDiv.innerHTML = `
-                    <div class="message-box">
-                        <div class="message-label">🔐 Verification Message</div>
-                        <div class="message-content">${verificationMessage}</div>
-                        <button class="copy-button" onclick="copyMessage()">
-                            📋 Copy Message
-                        </button>
-                    </div>
-                    
-                    <div class="instructions-box">
-                        <div class="message-label">📱 How to Sign (Mobile)</div>
-                        
-                        <div class="step">
-                            <div class="step-number">1</div>
-                            <div class="step-text">
-                                <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                    🦊 Open in MetaMask
-                                </button>
-                                <div style="margin-top: 8px; font-size: 12px; color: #fbbf24;">
-                                    This opens MetaMask with this page loaded!
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">2</div>
-                            <div class="step-text">
-                                In MetaMask, find the <span class="highlight">Sign Message</span> feature
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">3</div>
-                            <div class="step-text">
-                                Paste verification message and sign it
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">4</div>
-                            <div class="step-text">
-                                Copy the signature (starts with <span class="highlight">0x</span>)
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">5</div>
-                            <div class="step-text">
-                                Return to Discord and use: <span class="highlight">/verifywallet signature:0x...</span>
-                            </div>
-                        </div>
-                        
-                        <div class="step" style="margin-top: 16px;">
-                            <div class="step-number">🔄</div>
-                            <div class="step-text">
-                                <strong>Alternative wallets:</strong><br>
-                                <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
-                                    🔷 Trust Wallet
-                                </button>
-                                <button class="copy-button" onclick="openRainbowDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
-                                    🌈 Rainbow
-                                </button>
-                                <button class="copy-button" onclick="openCoinbaseDeepLink()" style="margin: 4px 8px 4px 0; padding: 6px 12px; font-size: 12px;">
-                                    💙 Coinbase
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="instructions-box">
-                        <div class="message-label">💻 How to Sign (Desktop)</div>
-                        
-                        <div class="step">
-                            <div class="step-number">1</div>
-                            <div class="step-text">
-                                Install MetaMask browser extension
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">2</div>
-                            <div class="step-text">
-                                Refresh this page with MetaMask installed
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">3</div>
-                            <div class="step-text">
-                                Click "Connect Wallet" button that will appear
-                            </div>
-                        </div>
-                        
-                        <div class="step">
-                            <div class="step-number">4</div>
-                            <div class="step-text">
-                                Sign the message automatically
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="discord-info">
-                        💡 <strong>Important:</strong><br>
-                        • Make sure you're on <strong>Ethereum Classic (ETC)</strong> network<br>
-                        • The signature must start with <strong>0x</strong><br>
-                        • Keep your signature private - never share it publicly
-                    </div>
-                `;
-                
-                // Check if MetaMask is available for desktop users
-                if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
-                    // Add desktop wallet connection button
-                    const desktopSection = document.createElement('div');
-                    desktopSection.className = 'instructions-box';
-                    desktopSection.innerHTML = `
-                        <div class="message-label">🖥️ Desktop Connection Available</div>
-                        <button class="copy-button" onclick="connectDesktopWallet()">
-                            🔗 Connect MetaMask Desktop
-                        </button>
-                    `;
-                    contentDiv.insertBefore(desktopSection, contentDiv.querySelector('.discord-info'));
-                }
-            } else {
-                contentDiv.innerHTML = `
-                    <div class="message-box">
-                        <div class="message-label">❌ No Verification Message</div>
-                        <div style="color: #fbbf24; margin: 8px 0;">Please use /linkwallet in Discord first</div>
-                    </div>
-                `;
-            }
-        }
-        
-        // Desktop wallet connection
-        async function connectDesktopWallet() {
+        // Connect to wallet (works in wallet browsers)
+        async function connectWallet() {
             if (!verificationMessage) {
                 showStatus('❌ No verification message found', 'error');
                 return;
             }
             
             try {
-                const provider = window.ethereum;
+                // Check if ethereum provider is available
+                if (typeof window.ethereum === 'undefined') {
+                    showStatus('❌ No wallet detected. Please open this page in your wallet app.', 'error');
+                    return;
+                }
                 
                 // Request account access
-                const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (accounts.length === 0) {
                     showStatus('❌ No accounts found', 'error');
                     return;
                 }
                 
-                const currentWallet = accounts[0];
+                currentWallet = accounts[0];
                 
                 // Switch to ETC network if needed
                 try {
-                    await provider.request({
+                    await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: '0x3D' }], // 61 in hex
                     });
                 } catch (switchError) {
                     if (switchError.code === 4902) {
                         try {
-                            await provider.request({
+                            await window.ethereum.request({
                                 method: 'wallet_addEthereumChain',
                                 params: [
                                     {
@@ -503,35 +361,225 @@
                     }
                 }
                 
-                // Sign message
-                const signature = await provider.request({
+                showWalletConnected();
+                
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                showStatus('❌ Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+        
+        // Sign message
+        async function signMessage() {
+            if (!currentWallet || !verificationMessage) {
+                showStatus('❌ Please connect wallet first', 'error');
+                return;
+            }
+            
+            try {
+                const signature = await window.ethereum.request({
                     method: 'personal_sign',
                     params: [verificationMessage, currentWallet],
                 });
                 
-                // Show success
-                const contentDiv = document.getElementById('content');
-                contentDiv.innerHTML = `
-                    <div class="message-box">
-                        <div class="message-label">🎉 Success!</div>
-                        <div class="message-content">${signature}</div>
-                        <button class="copy-button" onclick="copySignature('${signature}')">
-                            📋 Copy Signature
-                        </button>
-                    </div>
-                    
-                    <div class="discord-info success">
-                        🎉 <strong>Almost Done!</strong><br>
-                        1. The signature has been copied to your clipboard<br>
-                        2. Return to Discord<br>
-                        3. Use: <code>/verifywallet signature:0x...</code><br>
-                        4. Paste the signature and submit!
-                    </div>
-                `;
+                showSignatureResult(signature);
                 
             } catch (error) {
-                console.error('Desktop wallet error:', error);
-                showStatus('❌ Failed to connect: ' + error.message, 'error');
+                console.error('Signature error:', error);
+                showStatus('❌ Failed to sign message: ' + error.message, 'error');
+            }
+        }
+        
+        // Show wallet connected state
+        function showWalletConnected() {
+            const contentDiv = document.getElementById('content');
+            
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">✅ Wallet Connected</div>
+                    <div class="wallet-address">${currentWallet}</div>
+                </div>
+                
+                <div class="message-box">
+                    <div class="message-label">🔐 Verification Message</div>
+                    <div class="message-content">${verificationMessage}</div>
+                    <button class="copy-button" onclick="copyMessage()">
+                        📋 Copy Message
+                    </button>
+                </div>
+                
+                <button class="connect-button" onclick="signMessage()">
+                    ✍️ Sign Message
+                </button>
+                
+                <div class="discord-info">
+                    💡 <strong>Next Steps:</strong><br>
+                    1. Click "Sign Message" above<br>
+                    2. Approve the signature in your wallet<br>
+                    3. Copy the signature result<br>
+                    4. Return to Discord: <code>/verifywallet signature:0x...</code>
+                </div>
+            `;
+        }
+        
+        // Show signature result
+        function showSignatureResult(signature) {
+            const contentDiv = document.getElementById('content');
+            
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">✅ Wallet Connected</div>
+                    <div class="wallet-address">${currentWallet}</div>
+                </div>
+                
+                <div class="signature-result">
+                    <div class="message-label">🎉 Signature Generated!</div>
+                    <div class="signature-text">${signature}</div>
+                    <button class="copy-button" onclick="copySignature('${signature}')">
+                        📋 Copy Signature
+                    </button>
+                </div>
+                
+                <div class="discord-info success">
+                    🎉 <strong>Almost Done!</strong><br>
+                    1. The signature has been copied to your clipboard<br>
+                    2. Return to Discord<br>
+                    3. Use: <code>/verifywallet signature:0x...</code><br>
+                    4. Paste the signature and submit!
+                </div>
+            `;
+        }
+        
+        function copyMessage() {
+            if (!verificationMessage) return;
+            navigator.clipboard.writeText(verificationMessage).then(() => {
+                showStatus('✅ Message copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy message', 'error');
+            });
+        }
+        
+        function copySignature(signature) {
+            navigator.clipboard.writeText(signature).then(() => {
+                showStatus('✅ Signature copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy signature', 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const contentDiv = document.getElementById('content');
+            const existingStatus = contentDiv.querySelector('.status');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+            
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            contentDiv.appendChild(statusDiv);
+            
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 3000);
+        }
+        
+        function showMainInterface() {
+            const contentDiv = document.getElementById('content');
+            
+            if (verificationMessage) {
+                // Check if we're in a wallet browser
+                if (isWalletBrowser()) {
+                    contentDiv.innerHTML = `
+                        <div class="message-box">
+                            <div class="message-label">🔐 Verification Message</div>
+                            <div class="message-content">${verificationMessage}</div>
+                            <button class="copy-button" onclick="copyMessage()">
+                                📋 Copy Message
+                            </button>
+                        </div>
+                        
+                        <button class="connect-button" onclick="connectWallet()">
+                            🔗 Connect Wallet & Sign
+                        </button>
+                        
+                        <div class="discord-info">
+                            💡 <strong>Wallet Browser Detected!</strong><br>
+                            1. Click "Connect Wallet & Sign" above<br>
+                            2. Approve wallet connection<br>
+                            3. Sign the verification message<br>
+                            4. Copy the signature<br>
+                            5. Return to Discord: <code>/verifywallet signature:0x...</code>
+                        </div>
+                    `;
+                } else {
+                    // Regular browser - show manual instructions
+                    contentDiv.innerHTML = `
+                        <div class="message-box">
+                            <div class="message-label">🔐 Verification Message</div>
+                            <div class="message-content">${verificationMessage}</div>
+                            <button class="copy-button" onclick="copyMessage()">
+                                📋 Copy Message
+                            </button>
+                        </div>
+                        
+                        <div class="message-box">
+                            <div class="message-label">📱 Quick Wallet Links</div>
+                            
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-text">
+                                    <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        🦊 Open in MetaMask
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-text">
+                                    <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        🔷 Open in Trust Wallet
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-text">
+                                    <button class="copy-button" onclick="openRainbowDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        🌈 Open in Rainbow
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-text">
+                                    <button class="copy-button" onclick="openCoinbaseDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
+                                        💙 Open in Coinbase
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="discord-info">
+                            💡 <strong>How to Sign:</strong><br>
+                            1. Click any wallet button above<br>
+                            2. Connect your wallet in the app<br>
+                            3. Sign the verification message<br>
+                            4. Copy the signature<br>
+                            5. Return to Discord: <code>/verifywallet signature:0x...</code>
+                        </div>
+                    `;
+                }
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="message-box">
+                        <div class="message-label">❌ No Verification Message</div>
+                        <div style="color: #fbbf24; margin: 8px 0;">Please use /linkwallet in Discord first</div>
+                    </div>
+                `;
             }
         }
         
@@ -558,14 +606,6 @@
             const currentUrl = window.location.href;
             const coinbaseUrl = `https://go.cb-w.com/dapp?url=${encodeURIComponent(currentUrl)}`;
             window.location.href = coinbaseUrl;
-        }
-        
-        function copySignature(signature) {
-            navigator.clipboard.writeText(signature).then(() => {
-                showStatus('✅ Signature copied to clipboard!', 'success');
-            }).catch(() => {
-                showStatus('❌ Failed to copy signature', 'error');
-            });
         }
         
         // Main initialization
