@@ -7,7 +7,7 @@
     <title>ETCMCv2 Wallet Verification</title>
     
     <!-- WalletConnect v2 -->
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     
     <style>
         * {
@@ -61,6 +61,27 @@
             color: #ffffff;
         }
         
+        .wallet-info {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: left;
+        }
+        
+        .wallet-address {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #8b5cf6;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
         .message-box {
             background: rgba(26, 35, 126, 0.1);
             border: 1px solid rgba(26, 35, 126, 0.2);
@@ -90,7 +111,7 @@
             line-height: 1.4;
         }
         
-        .copy-button {
+        .connect-button, .sign-button, .copy-button {
             background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
             color: white;
             border: none;
@@ -99,21 +120,23 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 16px;
+            margin: 8px;
             transition: all 0.2s ease;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
-        .copy-button:hover {
+        .connect-button:hover, .sign-button:hover, .copy-button:hover {
             background: linear-gradient(45deg, #2a2a2a, #1a1a1a);
             transform: translateY(-2px);
         }
         
-        .copy-button:active {
-            transform: translateY(0);
+        .connect-button:disabled, .sign-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .status {
@@ -187,6 +210,45 @@
             color: #1a1a1a;
             font-weight: bold;
         }
+        
+        .qr-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qr-content {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .qr-content h3 {
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+        
+        .qr-content p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -204,14 +266,26 @@
         </div>
     </div>
     
+    <!-- QR Modal -->
+    <div id="qrModal" class="qr-modal">
+        <div class="qr-content">
+            <h3>📱 Scan QR Code</h3>
+            <p>Scan this QR code with your wallet app to connect</p>
+            <div id="qrCode" class="qr-code"></div>
+            <button class="connect-button" onclick="closeQRModal()">Close</button>
+        </div>
+    </div>
+    
     <!-- GitHub link -->
     <a href="https://github.com/Nowalski/ETCMCv2_Discord_Wallet" target="_blank" class="github-notice">
         📁 Powered by GitHub Pages
     </a>
 
     <script>
-        let verificationData = null;
         let provider = null;
+        let account = null;
+        let verificationMessage = null;
+        let userParams = null;
         
         // Parse URL parameters
         function getUrlParams() {
@@ -223,30 +297,224 @@
             };
         }
         
-        // Show verification message from URL parameters or WalletConnect
-        function showVerificationMessage(message) {
+        // Initialize WalletConnect
+        async function initWalletConnect() {
+            try {
+                console.log('🔗 Initializing WalletConnect...');
+                
+                // Check if WalletConnect is available
+                if (typeof window.WalletConnectProvider === 'undefined') {
+                    throw new Error('WalletConnect not loaded');
+                }
+                
+                // Initialize WalletConnect provider for ETC
+                provider = new window.WalletConnectProvider.default({
+                    infuraId: null, // We'll use custom RPC
+                    bridge: 'https://bridge.walletconnect.org',
+                    qrcodeModal: true,
+                    qrcodeModalOptions: {
+                        mobileLinks: [
+                            'metamask:',
+                            'trust:',
+                            'rainbow:',
+                            'coinbase:'
+                        ]
+                    },
+                    rpc: {
+                        61: {
+                            chainId: 61,
+                            rpcUrl: 'https://etc.rivet.link',
+                            networkName: 'Ethereum Classic',
+                            nativeCurrency: {
+                                name: 'Ethereum Classic',
+                                symbol: 'ETC',
+                                decimals: 18
+                            }
+                        }
+                    }
+                });
+                
+                // Listen for events
+                provider.on('connect', (error, payload) => {
+                    if (error) {
+                        console.error('❌ Connection error:', error);
+                        showStatus('Failed to connect wallet', 'error');
+                        return;
+                    }
+                    
+                    console.log('✅ Wallet connected:', payload);
+                    account = payload.accounts[0];
+                    showConnectedState();
+                    closeQRModal();
+                });
+                
+                provider.on('disconnect', (error, payload) => {
+                    console.log('❌ Wallet disconnected:', payload);
+                    account = null;
+                    showInitialState();
+                });
+                
+                // Check if already connected
+                if (provider.connected) {
+                    account = provider.accounts[0];
+                    showConnectedState();
+                } else {
+                    showInitialState();
+                }
+                
+            } catch (error) {
+                console.error('❌ WalletConnect error:', error);
+                showFallbackMethod();
+            }
+        }
+        
+        function showInitialState() {
             const contentDiv = document.getElementById('content');
             contentDiv.innerHTML = `
-                <div class="message-box">
-                    <div class="message-label">Verification Message</div>
-                    <div class="message-content">${message}</div>
-                    <button class="copy-button" onclick="copyMessage()">
-                        📋 Copy Message
-                    </button>
+                <div class="wallet-info">
+                    <div class="message-label">Wallet Status</div>
+                    <div style="color: #fbbf24; margin: 8px 0;">🔌 Not Connected</div>
                 </div>
+                <button class="connect-button" onclick="connectWallet()">
+                    🔗 Connect Wallet
+                </button>
+                ${verificationMessage ? `
+                    <div class="message-box">
+                        <div class="message-label">Verification Message</div>
+                        <div class="message-content">${verificationMessage}</div>
+                        <button class="copy-button" onclick="copyMessage()">
+                            📋 Copy Message
+                        </button>
+                    </div>
+                ` : ''}
                 <div class="discord-info">
-                    💡 Copy this message and use your wallet's "Sign Message" feature<br>
+                    💡 Connect your wallet to sign verification message automatically<br>
+                    Or copy message manually and sign in your wallet
+                </div>
+            `;
+        }
+        
+        function showConnectedState() {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">Connected Wallet</div>
+                    <div class="wallet-address">${account}</div>
+                </div>
+                ${verificationMessage ? `
+                    <button class="sign-button" onclick="signMessage()">
+                        ✍️ Sign Verification Message
+                    </button>
+                    <div class="message-box">
+                        <div class="message-label">Message to Sign</div>
+                        <div class="message-content">${verificationMessage}</div>
+                    </div>
+                ` : ''}
+                <button class="connect-button" onclick="disconnectWallet()">
+                    🔌 Disconnect
+                </button>
+                <div class="discord-info">
+                    💡 Click "Sign Verification Message" to automatically sign with your connected wallet
+                </div>
+            `;
+        }
+        
+        function showFallbackMethod() {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">WalletConnect Status</div>
+                    <div style="color: #fbbf24; margin: 8px 0;">⚠️ WalletConnect unavailable</div>
+                </div>
+                ${verificationMessage ? `
+                    <div class="message-box">
+                        <div class="message-label">Verification Message</div>
+                        <div class="message-content">${verificationMessage}</div>
+                        <button class="copy-button" onclick="copyMessage()">
+                            📋 Copy Message
+                        </button>
+                    </div>
+                ` : ''}
+                <div class="discord-info">
+                    💡 WalletConnect is not available. Please copy the message and sign it manually in your wallet.<br>
                     Then return to Discord and use: <code>/verifywallet signature:0x...</code>
                 </div>
             `;
         }
         
+        async function connectWallet() {
+            try {
+                await provider.connect();
+                showQRModal();
+            } catch (error) {
+                console.error('❌ Connection error:', error);
+                showStatus('Failed to connect wallet', 'error');
+            }
+        }
+        
+        async function disconnectWallet() {
+            try {
+                await provider.disconnect();
+            } catch (error) {
+                console.error('❌ Disconnect error:', error);
+            }
+        }
+        
+        async function signMessage() {
+            try {
+                if (!account || !verificationMessage) {
+                    showStatus('Please connect wallet and ensure verification message is available', 'error');
+                    return;
+                }
+                
+                const signature = await provider.signMessage({
+                    message: verificationMessage
+                });
+                
+                console.log('✅ Message signed:', signature);
+                showSignatureResult(signature);
+                
+            } catch (error) {
+                console.error('❌ Signing error:', error);
+                showStatus('Failed to sign message', 'error');
+            }
+        }
+        
+        function showSignatureResult(signature) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">✅ Successfully Signed!</div>
+                    <div class="wallet-address">${account}</div>
+                </div>
+                <div class="message-box">
+                    <div class="message-label">Your Signature</div>
+                    <div class="message-content">${signature}</div>
+                    <button class="copy-button" onclick="copySignature('${signature}')">
+                        📋 Copy Signature
+                    </button>
+                </div>
+                <div class="discord-info">
+                    ✅ <strong>Copy the signature above</strong><br>
+                    Return to Discord and use: <code>/verifywallet signature:${signature}</code>
+                </div>
+            `;
+        }
+        
         function copyMessage() {
-            const messageText = document.querySelector('.message-content').textContent;
-            navigator.clipboard.writeText(messageText).then(() => {
+            if (!verificationMessage) return;
+            navigator.clipboard.writeText(verificationMessage).then(() => {
                 showStatus('✅ Message copied to clipboard!', 'success');
             }).catch(() => {
                 showStatus('❌ Failed to copy message', 'error');
+            });
+        }
+        
+        function copySignature(signature) {
+            navigator.clipboard.writeText(signature).then(() => {
+                showStatus('✅ Signature copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy signature', 'error');
             });
         }
         
@@ -267,53 +535,24 @@
             }, 3000);
         }
         
-        // Initialize WalletConnect v2
-        async function initWalletConnect() {
-            if (window.WalletConnectProvider) {
-                try {
-                    console.log('🔗 Initializing ETCMCv2 WalletConnect...');
-                    
-                    provider = new window.WalletConnectProvider({
-                        infuraId: null,
-                        rpc: {
-                            61: 'https://etc.rivet.link'
-                        }
-                    });
-                    
-                    // Try to get existing session
-                    try {
-                        const session = await provider.connect();
-                        console.log('✅ ETCMCv2 WalletConnect session:', session);
-                        showVerificationMessage('Please use the verification message from Discord');
-                        
-                    } catch (error) {
-                        console.log('📱 No existing session, showing QR...');
-                        // Show QR modal for new connection
-                        await provider.enable();
-                        showVerificationMessage('📱 ETCMCv2 QR scanned. Please check your wallet for the verification message.');
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ ETCMCv2 WalletConnect error:', error);
-                    showVerificationMessage('❌ ETCMCv2 WalletConnect initialization failed. Please use manual method below.');
-                }
-            } else {
-                showVerificationMessage('❌ ETCMCv2 WalletConnect not available. Please use manual method below.');
-            }
+        function showQRModal() {
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+        
+        function closeQRModal() {
+            document.getElementById('qrModal').style.display = 'none';
         }
         
         // Main initialization
         async function init() {
-            const params = getUrlParams();
+            userParams = getUrlParams();
             
-            if (params.msg) {
-                // Direct message from URL parameters
-                console.log('📝 Direct message from URL parameters');
-                showVerificationMessage(params.msg);
-                return;
+            if (userParams.msg) {
+                verificationMessage = userParams.msg;
+                console.log('📝 Verification message loaded:', verificationMessage);
             }
             
-            // Try ETCMCv2 WalletConnect
+            // Initialize WalletConnect
             await initWalletConnect();
         }
         
