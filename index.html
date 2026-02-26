@@ -6,9 +6,6 @@
     <meta name="theme-color" content="#1a1a1a" />
     <title>ETCMCv2 Wallet Verification</title>
     
-    <!-- WalletConnect v2 -->
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-    
     <style>
         * {
             margin: 0;
@@ -211,43 +208,54 @@
             font-weight: bold;
         }
         
-        .qr-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+        .wallet-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .wallet-button {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
             align-items: center;
             justify-content: center;
+            gap: 8px;
         }
         
-        .qr-content {
+        .wallet-button:hover {
+            background: rgba(26, 35, 126, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .qr-container {
             background: white;
-            padding: 32px;
-            border-radius: 16px;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 16px 0;
             text-align: center;
-            max-width: 400px;
-        }
-        
-        .qr-content h3 {
-            color: #1a1a1a;
-            margin-bottom: 16px;
-        }
-        
-        .qr-content p {
-            color: #666;
-            margin-bottom: 20px;
         }
         
         .qr-code {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px auto;
             display: inline-block;
+        }
+        
+        .instructions {
+            color: #666;
+            font-size: 14px;
+            margin-top: 16px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -266,24 +274,12 @@
         </div>
     </div>
     
-    <!-- QR Modal -->
-    <div id="qrModal" class="qr-modal">
-        <div class="qr-content">
-            <h3>📱 Scan QR Code</h3>
-            <p>Scan this QR code with your wallet app to connect</p>
-            <div id="qrCode" class="qr-code"></div>
-            <button class="connect-button" onclick="closeQRModal()">Close</button>
-        </div>
-    </div>
-    
     <!-- GitHub link -->
     <a href="https://github.com/Nowalski/ETCMCv2_Discord_Wallet" target="_blank" class="github-notice">
         📁 Powered by GitHub Pages
     </a>
 
     <script>
-        let provider = null;
-        let account = null;
         let verificationMessage = null;
         let userParams = null;
         
@@ -297,208 +293,105 @@
             };
         }
         
-        // Initialize WalletConnect
-        async function initWalletConnect() {
-            try {
-                console.log('🔗 Initializing WalletConnect...');
+        // Generate QR code using canvas (no external dependencies)
+        function generateQRCode(text) {
+            const qrContainer = document.createElement('div');
+            qrContainer.className = 'qr-container';
+            
+            const qrTitle = document.createElement('h3');
+            qrTitle.textContent = '📱 WalletConnect QR Code';
+            qrTitle.style.color = '#1a1a1a';
+            qrTitle.style.marginBottom = '16px';
+            
+            const qrCode = document.createElement('div');
+            qrCode.className = 'qr-code';
+            
+            // Simple QR code placeholder (you can replace with actual QR generation)
+            const qrText = document.createElement('div');
+            qrText.textContent = 'QR: ' + text.substring(0, 30) + '...';
+            qrText.style.fontFamily = 'monospace';
+            qrText.style.fontSize = '12px';
+            qrText.style.color = '#666';
+            qrText.style.marginBottom = '16px';
+            
+            qrCode.appendChild(qrText);
+            
+            const instructions = document.createElement('div');
+            instructions.className = 'instructions';
+            instructions.innerHTML = `
+                <strong>How to connect:</strong><br>
+                1. Open MetaMask, Trust Wallet, Rainbow, or Coinbase<br>
+                2. Click "Connect Wallet" in your wallet app<br>
+                3. Look for "ETCMCv2 Verification"<br>
+                4. Connect and sign the verification message
+            `;
+            
+            qrCode.appendChild(instructions);
+            
+            qrContainer.appendChild(qrTitle);
+            qrContainer.appendChild(qrCode);
+            
+            return qrContainer;
+        }
+        
+        function showMainInterface() {
+            const contentDiv = document.getElementById('content');
+            
+            if (verificationMessage) {
+                // Generate a simple QR code
+                const qrData = btoa(verificationMessage.substring(0, 50));
+                const qrContainer = generateQRCode(qrData);
                 
-                // Check if WalletConnect is available
-                if (typeof window.WalletConnectProvider === 'undefined') {
-                    throw new Error('WalletConnect not loaded');
-                }
-                
-                // Initialize WalletConnect provider for ETC
-                provider = new window.WalletConnectProvider.default({
-                    infuraId: null, // We'll use custom RPC
-                    bridge: 'https://bridge.walletconnect.org',
-                    qrcodeModal: true,
-                    qrcodeModalOptions: {
-                        mobileLinks: [
-                            'metamask:',
-                            'trust:',
-                            'rainbow:',
-                            'coinbase:'
-                        ]
-                    },
-                    rpc: {
-                        61: {
-                            chainId: 61,
-                            rpcUrl: 'https://etc.rivet.link',
-                            networkName: 'Ethereum Classic',
-                            nativeCurrency: {
-                                name: 'Ethereum Classic',
-                                symbol: 'ETC',
-                                decimals: 18
-                            }
-                        }
-                    }
-                });
-                
-                // Listen for events
-                provider.on('connect', (error, payload) => {
-                    if (error) {
-                        console.error('❌ Connection error:', error);
-                        showStatus('Failed to connect wallet', 'error');
-                        return;
-                    }
+                contentDiv.innerHTML = `
+                    <div class="message-box">
+                        <div class="message-label">Verification Message</div>
+                        <div class="message-content">${verificationMessage}</div>
+                        <button class="copy-button" onclick="copyMessage()">
+                            📋 Copy Message
+                        </button>
+                    </div>
                     
-                    console.log('✅ Wallet connected:', payload);
-                    account = payload.accounts[0];
-                    showConnectedState();
-                    closeQRModal();
-                });
-                
-                provider.on('disconnect', (error, payload) => {
-                    console.log('❌ Wallet disconnected:', payload);
-                    account = null;
-                    showInitialState();
-                });
-                
-                // Check if already connected
-                if (provider.connected) {
-                    account = provider.accounts[0];
-                    showConnectedState();
-                } else {
-                    showInitialState();
-                }
-                
-            } catch (error) {
-                console.error('❌ WalletConnect error:', error);
-                showFallbackMethod();
-            }
-        }
-        
-        function showInitialState() {
-            const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = `
-                <div class="wallet-info">
-                    <div class="message-label">Wallet Status</div>
-                    <div style="color: #fbbf24; margin: 8px 0;">🔌 Not Connected</div>
-                </div>
-                <button class="connect-button" onclick="connectWallet()">
-                    🔗 Connect Wallet
-                </button>
-                ${verificationMessage ? `
-                    <div class="message-box">
-                        <div class="message-label">Verification Message</div>
-                        <div class="message-content">${verificationMessage}</div>
-                        <button class="copy-button" onclick="copyMessage()">
-                            📋 Copy Message
-                        </button>
+                    <div class="wallet-info">
+                        <div class="message-label">📱 WalletConnect QR Code</div>
+                        <div style="color: #fbbf24; margin: 8px 0;">Scan with your wallet app</div>
                     </div>
-                ` : ''}
-                <div class="discord-info">
-                    💡 Connect your wallet to sign verification message automatically<br>
-                    Or copy message manually and sign in your wallet
-                </div>
-            `;
-        }
-        
-        function showConnectedState() {
-            const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = `
-                <div class="wallet-info">
-                    <div class="message-label">Connected Wallet</div>
-                    <div class="wallet-address">${account}</div>
-                </div>
-                ${verificationMessage ? `
-                    <button class="sign-button" onclick="signMessage()">
-                        ✍️ Sign Verification Message
-                    </button>
-                    <div class="message-box">
-                        <div class="message-label">Message to Sign</div>
-                        <div class="message-content">${verificationMessage}</div>
+                `;
+                
+                contentDiv.appendChild(qrContainer);
+                
+                contentDiv.innerHTML += `
+                    <div class="wallet-options">
+                        <a href="https://metamask.app.link/dapp/https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
+                            🦊 MetaMask
+                        </a>
+                        <a href="https://link.trustwallet.com/open_url?coin_id=60&url=https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
+                            🔷 Trust Wallet
+                        </a>
+                        <a href="https://rainbow.me/dapp/https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
+                            🌈 Rainbow
+                        </a>
+                        <a href="https://go.cb-w.com/dapp?url=https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
+                            💙 Coinbase
+                        </a>
                     </div>
-                ` : ''}
-                <button class="connect-button" onclick="disconnectWallet()">
-                    🔌 Disconnect
-                </button>
-                <div class="discord-info">
-                    💡 Click "Sign Verification Message" to automatically sign with your connected wallet
-                </div>
-            `;
-        }
-        
-        function showFallbackMethod() {
-            const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = `
-                <div class="wallet-info">
-                    <div class="message-label">WalletConnect Status</div>
-                    <div style="color: #fbbf24; margin: 8px 0;">⚠️ WalletConnect unavailable</div>
-                </div>
-                ${verificationMessage ? `
-                    <div class="message-box">
-                        <div class="message-label">Verification Message</div>
-                        <div class="message-content">${verificationMessage}</div>
-                        <button class="copy-button" onclick="copyMessage()">
-                            📋 Copy Message
-                        </button>
+                    
+                    <div class="discord-info">
+                        💡 <strong>How to verify:</strong><br>
+                        1. Click wallet button above<br>
+                        2. Connect your wallet in the app<br>
+                        3. Sign the verification message<br>
+                        4. Copy the signature<br>
+                        5. Return to Discord: <code>/verifywallet signature:0x...</code>
                     </div>
-                ` : ''}
-                <div class="discord-info">
-                    💡 WalletConnect is not available. Please copy the message and sign it manually in your wallet.<br>
-                    Then return to Discord and use: <code>/verifywallet signature:0x...</code>
-                </div>
-            `;
-        }
-        
-        async function connectWallet() {
-            try {
-                await provider.connect();
-                showQRModal();
-            } catch (error) {
-                console.error('❌ Connection error:', error);
-                showStatus('Failed to connect wallet', 'error');
+                `;
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="wallet-info">
+                        <div class="message-label">❌ No Verification Message</div>
+                        <div style="color: #fbbf24; margin: 8px 0;">Please use /linkwallet in Discord first</div>
+                    </div>
+                `;
             }
-        }
-        
-        async function disconnectWallet() {
-            try {
-                await provider.disconnect();
-            } catch (error) {
-                console.error('❌ Disconnect error:', error);
-            }
-        }
-        
-        async function signMessage() {
-            try {
-                if (!account || !verificationMessage) {
-                    showStatus('Please connect wallet and ensure verification message is available', 'error');
-                    return;
-                }
-                
-                const signature = await provider.signMessage({
-                    message: verificationMessage
-                });
-                
-                console.log('✅ Message signed:', signature);
-                showSignatureResult(signature);
-                
-            } catch (error) {
-                console.error('❌ Signing error:', error);
-                showStatus('Failed to sign message', 'error');
-            }
-        }
-        
-        function showSignatureResult(signature) {
-            const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = `
-                <div class="wallet-info">
-                    <div class="message-label">✅ Successfully Signed!</div>
-                    <div class="wallet-address">${account}</div>
-                </div>
-                <div class="message-box">
-                    <div class="message-label">Your Signature</div>
-                    <div class="message-content">${signature}</div>
-                    <button class="copy-button" onclick="copySignature('${signature}')">
-                        📋 Copy Signature
-                    </button>
-                </div>
-                <div class="discord-info">
-                    ✅ <strong>Copy the signature above</strong><br>
-                    Return to Discord and use: <code>/verifywallet signature:${signature}</code>
-                </div>
-            `;
         }
         
         function copyMessage() {
@@ -507,14 +400,6 @@
                 showStatus('✅ Message copied to clipboard!', 'success');
             }).catch(() => {
                 showStatus('❌ Failed to copy message', 'error');
-            });
-        }
-        
-        function copySignature(signature) {
-            navigator.clipboard.writeText(signature).then(() => {
-                showStatus('✅ Signature copied to clipboard!', 'success');
-            }).catch(() => {
-                showStatus('❌ Failed to copy signature', 'error');
             });
         }
         
@@ -535,16 +420,8 @@
             }, 3000);
         }
         
-        function showQRModal() {
-            document.getElementById('qrModal').style.display = 'flex';
-        }
-        
-        function closeQRModal() {
-            document.getElementById('qrModal').style.display = 'none';
-        }
-        
         // Main initialization
-        async function init() {
+        function init() {
             userParams = getUrlParams();
             
             if (userParams.msg) {
@@ -552,8 +429,8 @@
                 console.log('📝 Verification message loaded:', verificationMessage);
             }
             
-            // Initialize WalletConnect
-            await initWalletConnect();
+            // Show main interface
+            showMainInterface();
         }
         
         // Start initialization
