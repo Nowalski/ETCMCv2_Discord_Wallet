@@ -37,18 +37,24 @@
         }
         
         .logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 24px;
-            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
-            border-radius: 12px;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 24px auto;
+            background: linear-gradient(45deg, #2d3748, #4a5568);
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 24px;
+            font-weight: 700;
+            font-size: 28px;
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            line-height: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .logo span {
+            color: #8b5cf6; /* ETCMC in purple */
         }
         
         h1 {
@@ -87,7 +93,7 @@
             line-height: 1.4;
         }
         
-        .copy-button, .connect-button {
+        .copy-button, .connect-button, .action-button {
             background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
             color: white;
             border: none;
@@ -104,7 +110,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
-        .copy-button:hover, .connect-button:hover {
+        .copy-button:hover, .connect-button:hover, .action-button:hover {
             background: linear-gradient(45deg, #2a2a2a, #1a1a1a);
             transform: translateY(-2px);
         }
@@ -130,15 +136,17 @@
         
         .loading {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 32px;
+            gap: 16px;
         }
         
         .spinner {
             width: 32px;
             height: 32px;
-            border: 3px solid #1a1a1a;
+            border: 3px solid #8b5cf6;
             border-top: 3px solid transparent;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -177,7 +185,7 @@
         }
         
         .etc-brand {
-            color: #1a1a1a;
+            color: #8b5cf6 !important; /* Bright purple for visibility */
             font-weight: bold;
         }
         
@@ -256,6 +264,23 @@
             font-family: 'Courier New', monospace;
             font-size: 12px;
         }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0;
+        }
+        
+        .warning-note {
+            color: #fbbf24;
+            font-size: 12px;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -299,6 +324,12 @@
             return userAgent.includes('metamask') || 
                    userAgent.includes('trust') ||
                    window.ethereum !== undefined;
+        }
+        
+        // Detect if specifically in MetaMask browser
+        function isMetaMaskBrowser() {
+            return navigator.userAgent.toLowerCase().includes('metamask') || 
+                   (window.ethereum && window.ethereum.isMetaMask);
         }
         
         // Connect to wallet (works in wallet browsers)
@@ -486,8 +517,9 @@
             const contentDiv = document.getElementById('content');
             
             if (verificationMessage) {
-                // Check if we're in a wallet browser
+                // Check if we're in a wallet browser (like MetaMask's built-in browser)
                 if (isWalletBrowser()) {
+                    // If in MetaMask, we can directly connect without deeplinks
                     contentDiv.innerHTML = `
                         <div class="message-box">
                             <div class="message-label">🔐 Verification Message</div>
@@ -511,7 +543,8 @@
                         </div>
                     `;
                 } else {
-                    // Regular browser - show manual instructions
+                    // Regular browser - show both options: deeplinks and manual
+                    const isMetaMask = isMetaMaskBrowser(); // rare but could be
                     contentDiv.innerHTML = `
                         <div class="message-box">
                             <div class="message-label">🔐 Verification Message</div>
@@ -522,42 +555,54 @@
                         </div>
                         
                         <div class="message-box">
-                            <div class="message-label">📱 Quick Wallet Links</div>
+                            <div class="message-label">📱 Open in Wallet App</div>
                             
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <div class="step-text">
-                                    <button class="copy-button" onclick="openTrustDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        🔷 Open in Trust Wallet
-                                    </button>
-                                    <div style="margin-top: 8px; font-size: 12px; color: #8b5cf6;">
-                                        ✅ Works perfectly!
-                                    </div>
-                                </div>
+                            <div class="button-group">
+                                <button class="action-button" onclick="openTrustDeepLink()">
+                                    🔷 Trust Wallet
+                                </button>
+                                <button class="action-button" onclick="handleMetaMaskDeepLink()">
+                                    🦊 MetaMask
+                                </button>
                             </div>
                             
+                            <div class="warning-note" id="metamask-warning" style="display: none;">
+                                ⚠️ MetaMask may show a blank page. If that happens, follow the manual steps below.
+                            </div>
+                        </div>
+                        
+                        <div class="message-box">
+                            <div class="message-label">📋 Manual Method (Works for all wallets)</div>
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-text">Copy the verification message above</div>
+                            </div>
                             <div class="step">
                                 <div class="step-number">2</div>
-                                <div class="step-text">
-                                    <button class="copy-button" onclick="openMetaMaskDeepLink()" style="margin: 0; padding: 8px 16px; font-size: 14px;">
-                                        🦊 Open in MetaMask
-                                    </button>
-                                    <div style="margin-top: 8px; font-size: 12px; color: #fbbf24;">
-                                        ⚠️ May show blank page - try manual copy
-                                    </div>
+                                <div class="step-text">Open your wallet app and go to Browser/DApp</div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-text">Navigate to: <br><code style="word-break: break-all;">${window.location.href}</code><br>
+                                <button class="copy-button" onclick="copyCurrentUrl()" style="margin-top: 8px; padding: 6px 12px; font-size: 12px;">📋 Copy URL</button>
                                 </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-text">Once loaded, click "Connect Wallet & Sign"</div>
                             </div>
                         </div>
                         
                         <div class="discord-info">
-                            💡 <strong>How to Sign:</strong><br>
-                            1. Click any wallet button above<br>
-                            2. Connect your wallet in the app<br>
-                            3. Sign the verification message<br>
-                            4. Copy the signature<br>
-                            5. Return to Discord: <code>/verifywallet signature:0x...</code>
+                            💡 <strong>Need help?</strong> Contact support on Discord.
                         </div>
                     `;
+                    
+                    // Show warning specifically for MetaMask
+                    setTimeout(() => {
+                        const warning = document.getElementById('metamask-warning');
+                        if (warning) warning.style.display = 'block';
+                    }, 100);
                 }
             } else {
                 contentDiv.innerHTML = `
@@ -569,38 +614,94 @@
             }
         }
         
-        // MetaMask deeplink functions
+        // Trust Wallet deep link
         function openTrustDeepLink() {
             const currentUrl = window.location.href;
             const trustUrl = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(currentUrl)}`;
             window.location.href = trustUrl;
         }
         
-        function openMetaMaskDeepLink() {
-            // Try different MetaMask deeplink approaches
+        // Improved MetaMask handling
+        function handleMetaMaskDeepLink() {
             const currentUrl = window.location.href;
             
-            // Method 1: Standard dapp link
-            const metamaskUrl1 = `https://link.metamask.io/dapp/${encodeURIComponent(currentUrl)}`;
+            // First, try to open MetaMask via deeplink
+            const metamaskDeeplink = `https://metamask.app.link/dapp/${encodeURIComponent(currentUrl)}`;
+            window.location.href = metamaskDeeplink;
             
-            // Method 2: Direct URL approach (fallback)
-            const metamaskUrl2 = `metamask://dapp/${encodeURIComponent(currentUrl)}`;
-            
-            // Method 3: Universal link
-            const metamaskUrl3 = `https://metamask.app.link/dapp/${encodeURIComponent(currentUrl)}`;
-            
-            // Try Method 1 first
-            window.location.href = metamaskUrl1;
-            
-            // Fallback to Method 2 after 1 second if Method 1 doesn't work
+            // Show a helpful message in case it fails
             setTimeout(() => {
-                window.location.href = metamaskUrl2;
-            }, 1000);
+                // If the page is still visible, the deeplink probably didn't work
+                if (document.visibilityState === 'visible') {
+                    showMetaMaskManualInstructions();
+                }
+            }, 1500);
+        }
+        
+        function showMetaMaskManualInstructions() {
+            // Instead of replacing the whole interface, we can show a modal or status
+            // But here we'll update the content to guide the user
+            const contentDiv = document.getElementById('content');
+            const params = getUrlParams();
             
-            // Final fallback to Method 3
-            setTimeout(() => {
-                window.location.href = metamaskUrl3;
-            }, 2000);
+            contentDiv.innerHTML = `
+                <div class="message-box">
+                    <div class="message-label">🦊 MetaMask Manual Steps</div>
+                    <div style="color: #fbbf24; margin: 8px 0;">
+                        MetaMask didn't open automatically. Please follow these steps:
+                    </div>
+                </div>
+                
+                <div class="message-box">
+                    <div class="message-label">🔐 Verification Message</div>
+                    <div class="message-content">${params.msg}</div>
+                    <button class="copy-button" onclick="copyMessage()">
+                        📋 Copy Message
+                    </button>
+                </div>
+                
+                <div class="message-box">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Open MetaMask app manually</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Tap the browser icon (🌐) at the bottom</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Paste this URL:<br>
+                        <div class="highlight" style="word-break: break-all;">${window.location.href}</div>
+                        <button class="copy-button" onclick="copyCurrentUrl()" style="margin-top: 8px;">📋 Copy URL</button>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Click "Connect Wallet & Sign" on the page</div>
+                    </div>
+                </div>
+                
+                <div class="discord-info">
+                    💡 <strong>Why this happens:</strong> MetaMask's deeplink sometimes fails with GitHub Pages. Manual URL entry always works.
+                </div>
+                
+                <button class="connect-button" onclick="goBack()" style="margin-top: 16px;">
+                    🔙 Back to Main
+                </button>
+            `;
+        }
+        
+        function goBack() {
+            showMainInterface();
+        }
+        
+        function copyCurrentUrl() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showStatus('✅ URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy URL', 'error');
+            });
         }
         
         // Main initialization
