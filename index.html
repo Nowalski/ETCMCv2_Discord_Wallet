@@ -58,27 +58,6 @@
             color: #ffffff;
         }
         
-        .wallet-info {
-            background: rgba(26, 35, 126, 0.1);
-            border: 1px solid rgba(26, 35, 126, 0.2);
-            border-radius: 8px;
-            padding: 16px;
-            margin: 16px 0;
-            text-align: left;
-        }
-        
-        .wallet-address {
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            color: #8b5cf6;
-            word-break: break-all;
-            background: rgba(26, 35, 126, 0.2);
-            padding: 12px;
-            border-radius: 6px;
-            margin: 8px 0;
-            line-height: 1.4;
-        }
-        
         .message-box {
             background: rgba(26, 35, 126, 0.1);
             border: 1px solid rgba(26, 35, 126, 0.2);
@@ -228,6 +207,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            cursor: pointer;
         }
         
         .wallet-button:hover {
@@ -235,26 +215,45 @@
             transform: translateY(-2px);
         }
         
-        .qr-container {
-            background: white;
-            padding: 20px;
+        .wallet-info {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
             border-radius: 8px;
+            padding: 16px;
             margin: 16px 0;
-            text-align: center;
+            text-align: left;
         }
         
-        .qr-code {
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px auto;
-            display: inline-block;
-        }
-        
-        .instructions {
-            color: #666;
+        .wallet-address {
+            font-family: 'Courier New', monospace;
             font-size: 14px;
-            margin-top: 16px;
+            color: #8b5cf6;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
+        .signature-result {
+            background: rgba(26, 35, 126, 0.1);
+            border: 1px solid rgba(26, 35, 126, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: left;
+        }
+        
+        .signature-text {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #8b5cf6;
+            word-break: break-all;
+            background: rgba(26, 35, 126, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
             line-height: 1.4;
         }
     </style>
@@ -282,6 +281,7 @@
     <script>
         let verificationMessage = null;
         let userParams = null;
+        let currentWallet = null;
         
         // Parse URL parameters
         function getUrlParams() {
@@ -293,105 +293,178 @@
             };
         }
         
-        // Generate QR code using canvas (no external dependencies)
-        function generateQRCode(text) {
-            const qrContainer = document.createElement('div');
-            qrContainer.className = 'qr-container';
-            
-            const qrTitle = document.createElement('h3');
-            qrTitle.textContent = '📱 WalletConnect QR Code';
-            qrTitle.style.color = '#1a1a1a';
-            qrTitle.style.marginBottom = '16px';
-            
-            const qrCode = document.createElement('div');
-            qrCode.className = 'qr-code';
-            
-            // Simple QR code placeholder (you can replace with actual QR generation)
-            const qrText = document.createElement('div');
-            qrText.textContent = 'QR: ' + text.substring(0, 30) + '...';
-            qrText.style.fontFamily = 'monospace';
-            qrText.style.fontSize = '12px';
-            qrText.style.color = '#666';
-            qrText.style.marginBottom = '16px';
-            
-            qrCode.appendChild(qrText);
-            
-            const instructions = document.createElement('div');
-            instructions.className = 'instructions';
-            instructions.innerHTML = `
-                <strong>How to connect:</strong><br>
-                1. Open MetaMask, Trust Wallet, Rainbow, or Coinbase<br>
-                2. Click "Connect Wallet" in your wallet app<br>
-                3. Look for "ETCMCv2 Verification"<br>
-                4. Connect and sign the verification message
-            `;
-            
-            qrCode.appendChild(instructions);
-            
-            qrContainer.appendChild(qrTitle);
-            qrContainer.appendChild(qrCode);
-            
-            return qrContainer;
+        // Check if MetaMask is available
+        function isMetaMaskAvailable() {
+            return typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
         }
         
-        function showMainInterface() {
+        // Check if Trust Wallet is available
+        function isTrustWalletAvailable() {
+            return typeof window.ethereum !== 'undefined' && window.ethereum.isTrust;
+        }
+        
+        // Connect to wallet
+        async function connectWallet(walletType) {
+            if (!verificationMessage) {
+                showStatus('❌ No verification message found', 'error');
+                return;
+            }
+            
+            try {
+                let provider;
+                
+                if (walletType === 'metamask' && isMetaMaskAvailable()) {
+                    provider = window.ethereum;
+                } else if (walletType === 'trust' && isTrustWalletAvailable()) {
+                    provider = window.ethereum;
+                } else {
+                    // Fallback to mobile deep links
+                    const baseUrl = window.location.origin + window.location.search;
+                    if (walletType === 'metamask') {
+                        window.location.href = `https://metamask.app.link/dapp/${baseUrl}`;
+                    } else if (walletType === 'trust') {
+                        window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${baseUrl}`;
+                    } else if (walletType === 'rainbow') {
+                        window.location.href = `https://rainbow.me/dapp/${baseUrl}`;
+                    } else if (walletType === 'coinbase') {
+                        window.location.href = `https://go.cb-w.com/dapp?url=${baseUrl}`;
+                    }
+                    return;
+                }
+                
+                // Request account access
+                const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                if (accounts.length === 0) {
+                    showStatus('❌ No accounts found', 'error');
+                    return;
+                }
+                
+                currentWallet = accounts[0];
+                
+                // Switch to ETC network if needed
+                try {
+                    await provider.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x3D' }], // 61 in hex
+                    });
+                } catch (switchError) {
+                    // This error code indicates that the chain has not been added to MetaMask
+                    if (switchError.code === 4902) {
+                        try {
+                            await provider.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [
+                                    {
+                                        chainId: '0x3D',
+                                        chainName: 'Ethereum Classic',
+                                        nativeCurrency: {
+                                            name: 'Ethereum Classic',
+                                            symbol: 'ETC',
+                                            decimals: 18,
+                                        },
+                                        rpcUrls: ['https://etc.rivet.link'],
+                                        blockExplorerUrls: ['https://etcscan.io'],
+                                    },
+                                ],
+                            });
+                        } catch (addError) {
+                            showStatus('❌ Failed to add ETC network', 'error');
+                            return;
+                        }
+                    } else {
+                        showStatus('❌ Failed to switch to ETC network', 'error');
+                        return;
+                    }
+                }
+                
+                showWalletConnected();
+                
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                showStatus('❌ Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+        
+        // Sign message
+        async function signMessage() {
+            if (!currentWallet || !verificationMessage) {
+                showStatus('❌ Please connect wallet first', 'error');
+                return;
+            }
+            
+            try {
+                const provider = window.ethereum;
+                const signature = await provider.request({
+                    method: 'personal_sign',
+                    params: [verificationMessage, currentWallet],
+                });
+                
+                showSignatureResult(signature);
+                
+            } catch (error) {
+                console.error('Signature error:', error);
+                showStatus('❌ Failed to sign message: ' + error.message, 'error');
+            }
+        }
+        
+        // Show wallet connected state
+        function showWalletConnected() {
             const contentDiv = document.getElementById('content');
             
-            if (verificationMessage) {
-                // Generate a simple QR code
-                const qrData = btoa(verificationMessage.substring(0, 50));
-                const qrContainer = generateQRCode(qrData);
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">✅ Wallet Connected</div>
+                    <div class="wallet-address">${currentWallet}</div>
+                </div>
                 
-                contentDiv.innerHTML = `
-                    <div class="message-box">
-                        <div class="message-label">Verification Message</div>
-                        <div class="message-content">${verificationMessage}</div>
-                        <button class="copy-button" onclick="copyMessage()">
-                            📋 Copy Message
-                        </button>
-                    </div>
-                    
-                    <div class="wallet-info">
-                        <div class="message-label">📱 WalletConnect QR Code</div>
-                        <div style="color: #fbbf24; margin: 8px 0;">Scan with your wallet app</div>
-                    </div>
-                `;
+                <div class="message-box">
+                    <div class="message-label">Verification Message</div>
+                    <div class="message-content">${verificationMessage}</div>
+                    <button class="copy-button" onclick="copyMessage()">
+                        📋 Copy Message
+                    </button>
+                </div>
                 
-                contentDiv.appendChild(qrContainer);
+                <button class="sign-button" onclick="signMessage()">
+                    ✍️ Sign Message
+                </button>
                 
-                contentDiv.innerHTML += `
-                    <div class="wallet-options">
-                        <a href="https://metamask.app.link/dapp/https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
-                            🦊 MetaMask
-                        </a>
-                        <a href="https://link.trustwallet.com/open_url?coin_id=60&url=https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
-                            🔷 Trust Wallet
-                        </a>
-                        <a href="https://rainbow.me/dapp/https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
-                            🌈 Rainbow
-                        </a>
-                        <a href="https://go.cb-w.com/dapp?url=https://nowalski.github.io/ETCMCv2_Discord_Wallet${window.location.search}" class="wallet-button">
-                            💙 Coinbase
-                        </a>
-                    </div>
-                    
-                    <div class="discord-info">
-                        💡 <strong>How to verify:</strong><br>
-                        1. Click wallet button above<br>
-                        2. Connect your wallet in the app<br>
-                        3. Sign the verification message<br>
-                        4. Copy the signature<br>
-                        5. Return to Discord: <code>/verifywallet signature:0x...</code>
-                    </div>
-                `;
-            } else {
-                contentDiv.innerHTML = `
-                    <div class="wallet-info">
-                        <div class="message-label">❌ No Verification Message</div>
-                        <div style="color: #fbbf24; margin: 8px 0;">Please use /linkwallet in Discord first</div>
-                    </div>
-                `;
-            }
+                <div class="discord-info">
+                    💡 <strong>Next Steps:</strong><br>
+                    1. Click "Sign Message" above<br>
+                    2. Approve the signature in your wallet<br>
+                    3. Copy the signature result<br>
+                    4. Return to Discord: <code>/verifywallet signature:0x...</code>
+                </div>
+            `;
+        }
+        
+        // Show signature result
+        function showSignatureResult(signature) {
+            const contentDiv = document.getElementById('content');
+            
+            contentDiv.innerHTML = `
+                <div class="wallet-info">
+                    <div class="message-label">✅ Wallet Connected</div>
+                    <div class="wallet-address">${currentWallet}</div>
+                </div>
+                
+                <div class="signature-result">
+                    <div class="message-label">🎉 Signature Generated!</div>
+                    <div class="signature-text">${signature}</div>
+                    <button class="copy-button" onclick="copySignature('${signature}')">
+                        📋 Copy Signature
+                    </button>
+                </div>
+                
+                <div class="discord-info success">
+                    🎉 <strong>Almost Done!</strong><br>
+                    1. The signature has been copied to your clipboard<br>
+                    2. Return to Discord<br>
+                    3. Use: <code>/verifywallet signature:0x...</code><br>
+                    4. Paste the signature and submit!
+                </div>
+            `;
         }
         
         function copyMessage() {
@@ -400,6 +473,14 @@
                 showStatus('✅ Message copied to clipboard!', 'success');
             }).catch(() => {
                 showStatus('❌ Failed to copy message', 'error');
+            });
+        }
+        
+        function copySignature(signature) {
+            navigator.clipboard.writeText(signature).then(() => {
+                showStatus('✅ Signature copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy signature', 'error');
             });
         }
         
@@ -418,6 +499,53 @@
             setTimeout(() => {
                 statusDiv.remove();
             }, 3000);
+        }
+        
+        function showMainInterface() {
+            const contentDiv = document.getElementById('content');
+            
+            if (verificationMessage) {
+                contentDiv.innerHTML = `
+                    <div class="message-box">
+                        <div class="message-label">Verification Message</div>
+                        <div class="message-content">${verificationMessage}</div>
+                        <button class="copy-button" onclick="copyMessage()">
+                            📋 Copy Message
+                        </button>
+                    </div>
+                    
+                    <div class="wallet-options">
+                        <button class="wallet-button" onclick="connectWallet('metamask')">
+                            🦊 MetaMask
+                        </button>
+                        <button class="wallet-button" onclick="connectWallet('trust')">
+                            🔷 Trust Wallet
+                        </button>
+                        <button class="wallet-button" onclick="connectWallet('rainbow')">
+                            🌈 Rainbow
+                        </button>
+                        <button class="wallet-button" onclick="connectWallet('coinbase')">
+                            💙 Coinbase
+                        </button>
+                    </div>
+                    
+                    <div class="discord-info">
+                        💡 <strong>How to verify:</strong><br>
+                        1. Click your wallet button above<br>
+                        2. Connect your wallet (desktop) or open mobile app<br>
+                        3. Sign the verification message<br>
+                        4. Copy the signature<br>
+                        5. Return to Discord: <code>/verifywallet signature:0x...</code>
+                    </div>
+                `;
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="wallet-info">
+                        <div class="message-label">❌ No Verification Message</div>
+                        <div style="color: #fbbf24; margin: 8px 0;">Please use /linkwallet in Discord first</div>
+                    </div>
+                `;
+            }
         }
         
         // Main initialization
